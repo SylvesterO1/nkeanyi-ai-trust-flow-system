@@ -1,0 +1,24 @@
+# Java / Maven
+target/
+*.class
+
+# IntelliJ
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Local runtime files
+logs/
+.pids/
+*.log
+
+# Environment / secrets
+.env
+*.env
+application-local.yml
+application-local.properties
+
+# Docker volumes / temporary files
+tmp/

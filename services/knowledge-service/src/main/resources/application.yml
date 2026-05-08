@@ -1,0 +1,63 @@
+server:
+  port: 8088
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    consumer:
+      group-id: knowledge-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.nkeanyi.knowledge.kafka,com.nkeanyi.documentintelligence.kafka"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.nkeanyi.knowledge.kafka.DocumentExtractedEvent
+
+nkeanyi:
+  knowledge:
+    qdrant:
+      host: ${QDRANT_HOST:127.0.0.1}
+      port: ${QDRANT_PORT:6333}
+      collection: ${QDRANT_COLLECTION:nkeanyi-knowledge}
+      vector-size: ${QDRANT_VECTOR_SIZE:768}
+
+    minio:
+      endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+      access-key: ${MINIO_ACCESS_KEY:minioadmin}
+      secret-key: ${MINIO_SECRET_KEY:minioadmin}
+      bucket: ${MINIO_BUCKET:document-intelligence}
+
+    embedding:
+      provider: ${KNOWLEDGE_EMBEDDING_PROVIDER:ollama}
+
+    chunking:
+      chunk-size: ${KNOWLEDGE_CHUNK_SIZE:1000}
+      chunk-overlap: ${KNOWLEDGE_CHUNK_OVERLAP:200}
+      min-chunk-size: ${KNOWLEDGE_MIN_CHUNK_SIZE:100}
+
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+      embedding-model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+      chat-model: ${OLLAMA_CHAT_MODEL:llama3.2}
+
+    retrieval:
+      candidate-limit: ${KNOWLEDGE_RETRIEVAL_CANDIDATE_LIMIT:10}
+      vector-weight: ${KNOWLEDGE_RETRIEVAL_VECTOR_WEIGHT:0.7}
+      keyword-weight: ${KNOWLEDGE_RETRIEVAL_KEYWORD_WEIGHT:0.3}
+
+    reranking:
+      top-k: ${KNOWLEDGE_RERANK_TOP_K:5}
+      phrase-weight: ${KNOWLEDGE_RERANK_PHRASE_WEIGHT:0.4}
+      density-weight: ${KNOWLEDGE_RERANK_DENSITY_WEIGHT:0.4}
+      length-weight: ${KNOWLEDGE_RERANK_LENGTH_WEIGHT:0.2}
+
+    generation:
+      max-context-chars: ${KNOWLEDGE_GENERATION_MAX_CONTEXT_CHARS:4000}
+      system-prompt: ${KNOWLEDGE_GENERATION_SYSTEM_PROMPT:You are a grounded enterprise knowledge assistant. Answer only from the provided evidence and cite supporting chunks.}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

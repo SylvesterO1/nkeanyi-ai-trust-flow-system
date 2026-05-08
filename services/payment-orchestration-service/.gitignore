@@ -1,0 +1,24 @@
+.DS_Store
+.idea/
+
+# Build output
+target/
+out/
+build/
+*.class
+*.jar
+*.war
+
+# Logs
+*.log
+logs/
+
+# Env and local overrides
+.env
+.env.*
+!.env.example
+
+# OS/editor temp files
+*.swp
+*.swo
+*~

@@ -1,0 +1,51 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: compliance-evidence-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5434/compliancedb
+    username: compliance
+    password: compliance
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: compliance-evidence-service
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    admin:
+      auto-create: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+naitfs:
+  kafka:
+    topics:
+      document-extracted: document.extracted.v1
+      knowledge-answer-generated: knowledge.answer.generated.v1
+      payment-audit: payment.audit.v1
+      payment-status-changed: payment.status.changed.v1
