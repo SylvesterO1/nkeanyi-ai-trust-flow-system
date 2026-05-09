@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,13 +28,13 @@ public class TenantCorrelationGatewayFilter implements GlobalFilter, Ordered {
     public static final String TENANT_ID_HEADER = "X-Tenant-Id";
     public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
     public static final String REQUEST_SOURCE_HEADER = "X-Request-Source";
+    public static final String REQUEST_SOURCE = "api-gateway";
 
     private static final List<String> PUBLIC_PATH_PREFIXES = List.of(
-            "/actuator",
-            "/health",
-            "/swagger-ui",
-            "/v3/api-docs"
+            "/actuator/health",
+            "/actuator/info"
     );
+    private static final Pattern TENANT_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -67,15 +68,10 @@ public class TenantCorrelationGatewayFilter implements GlobalFilter, Ordered {
             correlationId = "corr-" + UUID.randomUUID();
         }
 
-        String requestSource = firstNonBlank(headers.getFirst(REQUEST_SOURCE_HEADER));
-        if (requestSource == null) {
-            requestSource = "api-gateway";
-        }
-
         ServerHttpRequest mutatedRequest = originalRequest.mutate()
                 .header(TENANT_ID_HEADER, tenantId)
                 .header(CORRELATION_ID_HEADER, correlationId)
-                .header(REQUEST_SOURCE_HEADER, requestSource)
+                .header(REQUEST_SOURCE_HEADER, REQUEST_SOURCE)
                 .build();
 
         log.info(
@@ -84,7 +80,7 @@ public class TenantCorrelationGatewayFilter implements GlobalFilter, Ordered {
                 correlationId,
                 method,
                 path,
-                requestSource,
+                REQUEST_SOURCE,
                 Instant.now()
         );
 
@@ -92,7 +88,8 @@ public class TenantCorrelationGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String path) {
-        return PUBLIC_PATH_PREFIXES.stream().anyMatch(path::startsWith);
+        return PUBLIC_PATH_PREFIXES.stream()
+                .anyMatch(publicPath -> path.equals(publicPath) || path.startsWith(publicPath + "/"));
     }
 
     private String firstNonBlank(String value) {
@@ -103,7 +100,7 @@ public class TenantCorrelationGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isValidTenantId(String tenantId) {
-        return tenantId.matches("^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$");
+        return TENANT_ID_PATTERN.matcher(tenantId).matches();
     }
 
     private Mono<Void> reject(ServerWebExchange exchange, HttpStatus status, String message) {
