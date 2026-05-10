@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "payments",
@@ -16,12 +17,13 @@ public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
-    @Column(name = "payment_id", nullable = false, unique = true, length = 64)
+    @Column(name = "payment_id", nullable = false, unique = true, length = 64, updatable = false)
     private String paymentId;
 
-    @Column(name = "idempotency_key", nullable = false, unique = true, length = 100)
+    @Column(name = "idempotency_key", nullable = false, unique = true, length = 100, updatable = false)
     private String idempotencyKey;
 
     @Column(name = "customer_id", nullable = false, length = 64)
@@ -58,7 +60,7 @@ public class Payment {
     @Column(name = "decision_reason", length = 255)
     private String decisionReason;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -73,7 +75,19 @@ public class Payment {
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
+
+        if (this.paymentId == null || this.paymentId.isBlank()) {
+            this.paymentId = "pay-" + UUID.randomUUID();
+        }
+
+        if (this.status == null) {
+            this.status = PaymentStatus.RECEIVED;
+        }
+
+        if (this.createdAt == null) {
+            this.createdAt = now;
+        }
+
         this.updatedAt = now;
     }
 
@@ -84,6 +98,14 @@ public class Payment {
 
     public Long getId() {
         return id;
+    }
+
+    /**
+     * Setter kept mainly for tests and controlled framework hydration.
+     * Application code should not manually assign database IDs.
+     */
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getPaymentId() {
@@ -194,8 +216,16 @@ public class Payment {
         return createdAt;
     }
 
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public LocalDateTime getProcessedAt() {
