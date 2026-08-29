@@ -1,4 +1,4 @@
-# nkeanyi-ai-trust-flow-system
+re# nkeanyi-ai-trust-flow-system
 
 ## MVP17 TrustFlow Console
 
@@ -19,7 +19,6 @@ GET /api/v1/documents/correlation/{correlationId}?tenantId=<tenant>&limit=25
 ```
 
 List endpoints return `{ "records": [...], "count": 0 }`. `X-Tenant-Id` is honored as the tenant filter when `tenantId` is not supplied as a query parameter.
-
 Verify with curl after the platform is running and a bearer token is available:
 
 ```bash
@@ -38,10 +37,10 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 Verify from the web console:
 
 ```bash
-cd /Users/a47487/NAITFS/nkeanyi-ai-trust-flow-system
+cd /NAITFS/nkeanyi-ai-trust-flow-system
 mvn test
 
-cd /Users/a47487/NAITFS/nkeanyi-ai-trust-flow-system/web/trustflow-console
+cd /Users//NAITFS/nkeanyi-ai-trust-flow-system/web/trustflow-console
 npm run build
 npm run dev:5174
 ```
@@ -165,14 +164,14 @@ Keycloak login -> TrustFlow Console -> API Gateway -> secured backend services -
 Run the smoke script:
 
 ```bash
-cd /Users/a47487/NAITFS/nkeanyi-ai-trust-flow-system
+cd /Users/NAITFS/nkeanyi-ai-trust-flow-system
 ./scripts/smoke-test-mvp19-commercial-demo.sh
 ```
 
 Run the UI demo:
 
 ```bash
-cd /Users/a47487/NAITFS/nkeanyi-ai-trust-flow-system/web/trustflow-console
+cd /Users/NAITFS/nkeanyi-ai-trust-flow-system/web/trustflow-console
 npm run dev:5174
 ```
 
