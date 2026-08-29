@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nkeanyi-AI Trust Flow System Dashboard</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <section class="topbar" aria-labelledby="dashboard-title">
+        <div>
+          <p class="eyebrow">MVP14 Executive Dashboard</p>
+          <h1 id="dashboard-title">Nkeanyi-AI Trust Flow System</h1>
+        </div>
+        <div id="readinessBadge" class="status-badge status-neutral">NO_EVIDENCE</div>
+      </section>
+
+      <section class="controls" aria-label="Dashboard connection settings">
+        <label>
+          <span>Gateway URL</span>
+          <input id="gatewayUrl" type="url" value="http://localhost:8080" spellcheck="false">
+        </label>
+        <label>
+          <span>Tenant ID</span>
+          <input id="tenantId" type="text" value="tenant-mvp13-demo" spellcheck="false">
+        </label>
+        <label class="token-field">
+          <span>Bearer Token</span>
+          <input id="token" type="password" placeholder="Paste evidence.read token">
+        </label>
+        <button id="loadDashboard" type="button">Refresh Dashboard</button>
+      </section>
+
+      <section id="message" class="message" role="status" aria-live="polite">
+        Paste a token with evidence.read scope, then refresh the dashboard.
+      </section>
+
+      <section class="metric-grid" aria-label="Tenant metrics">
+        <article class="metric-panel">
+          <span>Tenant</span>
+          <strong id="tenantValue">tenant-mvp13-demo</strong>
+        </article>
+        <article class="metric-panel">
+          <span>Total Evidence</span>
+          <strong id="totalEvidence">0</strong>
+        </article>
+        <article class="metric-panel">
+          <span>Total Correlations</span>
+          <strong id="totalCorrelations">0</strong>
+        </article>
+        <article class="metric-panel">
+          <span>Last Event Time</span>
+          <strong id="lastEventTime">No evidence</strong>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel">
+          <div class="panel-heading">
+            <h2>Evidence By Type</h2>
+          </div>
+          <div id="evidenceByType" class="evidence-list empty-state">No evidence loaded</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <h2>Service Participation</h2>
+          </div>
+          <div id="serviceParticipation" class="service-list empty-state">No services loaded</div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Recent Trust Flows</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Correlation ID</th>
+                <th>Status</th>
+                <th>Evidence</th>
+                <th>Source Services</th>
+                <th>Last Event</th>
+              </tr>
+            </thead>
+            <tbody id="recentTrustFlows">
+              <tr>
+                <td colspan="5" class="empty-row">No trust flows loaded</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

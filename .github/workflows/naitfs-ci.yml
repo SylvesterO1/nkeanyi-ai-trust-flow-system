@@ -1,0 +1,72 @@
+name: NAITFS CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    name: Build, Test, and Static Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run Maven tests
+        run: mvn test
+
+      - name: Check demo script syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/start-naitfs-platform.sh
+          bash -n scripts/reset-demo-data.sh
+          bash -n scripts/demo-regulated-trust-flow.sh
+          bash -n scripts/run-mvp12-postman-tests.sh
+          bash -n scripts/validate-mvp14-dashboard.sh
+          bash -n scripts/run-naitfs-demo.sh
+
+      - name: Validate Postman JSON artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq empty postman/NAITFS-MVP12-Regulated-Trust-Flow.postman_collection.json
+          jq empty postman/NAITFS-MVP12-local.postman_environment.json
+
+      - name: Check required docs and dashboard assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f docs/mvp12-postman-demo-guide.md
+          test -f docs/mvp13-observability-dashboard-guide.md
+          test -f docs/mvp14-demo-dashboard-ui-guide.md
+          test -f docs/mvp15-one-command-demo-guide.md
+          test -f dashboard/index.html
+
+      - name: Validate Docker Compose configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f platform/docker/docker-compose.naitfs.yml ]; then
+            docker compose -f platform/docker/docker-compose.naitfs.yml config >/tmp/naitfs-compose-config.yml
+          fi
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-test-reports
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          if-no-files-found: ignore

@@ -1,0 +1,485 @@
+{
+  "info": {
+    "_postman_id": "ee73f13a-8717-4d4b-a247-390cb9543995",
+    "name": "NAITFS MVP12 Regulated Trust Flow",
+    "description": "External API demo and validation package for the NAITFS regulated trust flow through the API Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 API Gateway Health",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const uuid = pm.variables.replaceIn('{{$guid}}');",
+              "pm.environment.set('runId', uuid);",
+              "pm.environment.set('correlationId', `corr-mvp12-${uuid}`);",
+              "pm.environment.set('idempotencyKey', `idem-mvp12-payment-${uuid}`);",
+              "pm.environment.set('documentId', '');",
+              "pm.environment.set('paymentId', '');",
+              "pm.environment.set('evidenceCount', '0');",
+              "pm.environment.set('evidenceRetryCount', '0');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API Gateway health returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Health response reports UP', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.eql('UP');",
+              "});",
+              "pm.test('Run identifiers were generated', function () {",
+              "  pm.expect(pm.environment.get('correlationId')).to.match(/^corr-mvp12-/);",
+              "  pm.expect(pm.environment.get('idempotencyKey')).to.match(/^idem-mvp12-payment-/);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{gatewayUrl}}/actuator/health"
+      }
+    },
+    {
+      "name": "02 Keycloak JWT Token Retrieval",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Keycloak token endpoint returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Access token is present and saved', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.access_token).to.be.a('string').and.not.empty;",
+              "  pm.environment.set('accessToken', json.access_token);",
+              "});",
+              "pm.test('Token response is bearer token JSON', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.token_type.toLowerCase()).to.eql('bearer');",
+              "  pm.expect(json.expires_in).to.be.a('number');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "client_id", "value": "{{clientId}}", "type": "text" },
+            { "key": "username", "value": "{{username}}", "type": "text" },
+            { "key": "password", "value": "{{password}}", "type": "text" },
+            { "key": "grant_type", "value": "password", "type": "text" },
+            { "key": "scope", "value": "openid profile email documents.write knowledge.read payments.write payments.read evidence.read", "type": "text" }
+          ]
+        },
+        "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token"
+      }
+    },
+    {
+      "name": "03 Protected Endpoint Access With Valid JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Protected endpoint accepts valid JWT and required headers', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Evidence response has expected envelope', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('count');",
+              "  pm.expect(json).to.have.property('evidence');",
+              "  pm.expect(json.evidence).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/evidence/correlation/{{correlationId}}"
+      }
+    },
+    {
+      "name": "04 Reject Missing JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Gateway rejects missing JWT', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Missing JWT response is explicit', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.eql(401);",
+              "  pm.expect(json.message).to.match(/bearer token/i);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/evidence/correlation/{{correlationId}}"
+      }
+    },
+    {
+      "name": "05 Reject Invalid JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Gateway rejects invalid JWT', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Invalid JWT response is unauthorized', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.eql(401);",
+              "  pm.expect(json.error).to.match(/unauthorized/i);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer invalid.jwt.token" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/evidence/correlation/{{correlationId}}"
+      }
+    },
+    {
+      "name": "06 Missing Required Headers Rejection",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Gateway rejects missing required correlation header', function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Missing header response names the required header', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.eql(400);",
+              "  pm.expect(json.message).to.include('X-Correlation-Id');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/evidence/correlation/{{correlationId}}"
+      }
+    },
+    {
+      "name": "07 Document Processing Through Gateway",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Document processing returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Document response includes extracted object', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.objectName).to.be.a('string').and.not.empty;",
+              "  pm.expect(json.extractedTextLength).to.be.above(0);",
+              "  pm.environment.set('documentId', json.objectName);",
+              "});",
+              "pm.test('Document response confirms extraction status', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status || json.eventStatus).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "target/mvp12-control.txt" }
+          ]
+        },
+        "url": "{{gatewayUrl}}/api/v1/documents/process"
+      }
+    },
+    {
+      "name": "08 Grounded Knowledge Answer Generation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Knowledge answer returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Knowledge answer is grounded with citations', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.answer).to.be.a('string').and.not.empty;",
+              "  pm.expect(json.citationPackage).to.be.an('object');",
+              "  pm.expect(json.citationPackage.citations).to.be.an('array').and.not.empty;",
+              "});",
+              "pm.test('Knowledge request used documentId from document processing', function () {",
+              "  pm.expect(pm.environment.get('documentId')).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"What does the MVP12 control require before payment release?\",\n  \"documentId\": \"{{documentId}}\"\n}"
+        },
+        "url": "{{gatewayUrl}}/api/v1/knowledge/answer"
+      }
+    },
+    {
+      "name": "09 Payment Creation Through Gateway",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment creation returns 200 or 201', function () {",
+              "  pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test('Payment response includes paymentId', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.paymentId).to.be.a('string').and.not.empty;",
+              "  pm.expect(json.customerId).to.eql(pm.environment.get('customerId'));",
+              "  pm.environment.set('paymentId', json.paymentId);",
+              "});",
+              "pm.test('Payment response includes workflow status', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"sourceAccount\": \"ACC-MVP12-SOURCE\",\n  \"destinationAccount\": \"ACC-MVP12-DEST\",\n  \"amount\": 1250.75,\n  \"currency\": \"USD\",\n  \"paymentReference\": \"MVP12-DEMO-{{runId}}\",\n  \"paymentMethod\": \"BANK_TRANSFER\",\n  \"narration\": \"MVP12 external API demo\"\n}"
+        },
+        "url": "{{gatewayUrl}}/api/v1/payments"
+      }
+    },
+    {
+      "name": "10 Idempotency Replay Using Same Idempotency Key",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Idempotency replay returns 200 for existing payment', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Replay returns the same paymentId', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.paymentId).to.eql(pm.environment.get('paymentId'));",
+              "});",
+              "pm.test('Replay used the same idempotency key', function () {",
+              "  pm.expect(pm.environment.get('idempotencyKey')).to.match(/^idem-mvp12-payment-/);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"sourceAccount\": \"ACC-MVP12-SOURCE\",\n  \"destinationAccount\": \"ACC-MVP12-DEST\",\n  \"amount\": 1250.75,\n  \"currency\": \"USD\",\n  \"paymentReference\": \"MVP12-DEMO-{{runId}}\",\n  \"paymentMethod\": \"BANK_TRANSFER\",\n  \"narration\": \"MVP12 external API demo\"\n}"
+        },
+        "url": "{{gatewayUrl}}/api/v1/payments"
+      }
+    },
+    {
+      "name": "11 Compliance Evidence Retrieval By CorrelationId",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const retryCount = parseInt(pm.environment.get('evidenceRetryCount') || '0', 10);",
+              "if (retryCount > 0) {",
+              "  const waitUntil = Date.now() + 2000;",
+              "  while (Date.now() < waitUntil) {}",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Evidence lookup returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const json = pm.response.json();",
+              "const evidence = json.evidence || [];",
+              "const types = evidence.map(record => record.evidenceType);",
+              "const requiredTypes = ['DOCUMENT_EXTRACTED', 'KNOWLEDGE_ANSWER_GENERATED', 'PAYMENT_RECEIVED', 'PAYMENT_COMPLETED'];",
+              "const hasAllTypes = requiredTypes.every(type => types.includes(type));",
+              "const retryCount = parseInt(pm.environment.get('evidenceRetryCount') || '0', 10);",
+              "if (!hasAllTypes && retryCount < 25) {",
+              "  pm.environment.set('evidenceRetryCount', String(retryCount + 1));",
+              "  postman.setNextRequest(pm.info.requestName);",
+              "  pm.test('Evidence package is pending regulated event propagation', function () {",
+              "    pm.expect(pm.response.code).to.eql(200);",
+              "  });",
+              "} else {",
+              "  pm.test('Evidence package contains regulated trust flow event types', function () {",
+              "    pm.expect(types).to.include('DOCUMENT_EXTRACTED');",
+              "    pm.expect(types).to.include('KNOWLEDGE_ANSWER_GENERATED');",
+              "    pm.expect(types).to.include('PAYMENT_RECEIVED');",
+              "    pm.expect(types).to.include('PAYMENT_COMPLETED');",
+              "  });",
+              "  pm.test('Evidence records preserve tenant and correlation metadata', function () {",
+              "    pm.expect(evidence.length).to.be.at.least(4);",
+              "    evidence.forEach(record => {",
+              "      pm.expect(record.tenantId).to.eql(pm.environment.get('tenantId'));",
+              "      pm.expect(record.correlationId).to.eql(pm.environment.get('correlationId'));",
+              "    });",
+              "  });",
+              "}",
+              "pm.environment.set('evidenceCount', String(json.count || evidence.length));",
+              "if (hasAllTypes) {",
+              "  pm.environment.set('evidenceRetryCount', '0');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/evidence/correlation/{{correlationId}}"
+      }
+    },
+    {
+      "name": "12 Tenant Isolation Behavior",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Wrong tenant evidence lookup returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Wrong tenant cannot see evidence records', function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.count).to.eql(0);",
+              "  pm.expect(json.evidence).to.be.an('array').that.is.empty;",
+              "});",
+              "pm.test('Original tenant evidence count was captured', function () {",
+              "  pm.expect(parseInt(pm.environment.get('evidenceCount') || '0', 10)).to.be.at.least(4);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "X-Tenant-Id", "value": "tenant-mvp12-other" },
+          { "key": "X-Correlation-Id", "value": "{{correlationId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+        ],
+        "url": "{{gatewayUrl}}/api/v1/evidence/correlation/{{correlationId}}"
+      }
+    }
+  ]
+}

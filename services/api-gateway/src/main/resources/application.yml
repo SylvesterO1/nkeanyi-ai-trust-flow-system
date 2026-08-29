@@ -1,0 +1,73 @@
+server:
+  port: ${API_GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/realms/payment-platform}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/realms/payment-platform/protocol/openid-connect/certs}
+
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - X-N-AITFS-Gateway
+            allowCredentials: false
+      default-filters:
+        - AddResponseHeader=X-N-AITFS-Gateway, api-gateway
+      routes:
+        - id: document-intelligence-service-root
+          uri: ${DOCUMENT_INTELLIGENCE_SERVICE_URL:http://localhost:8089}
+          predicates:
+            - Path=/api/v1/documents
+
+        - id: document-intelligence-service
+          uri: ${DOCUMENT_INTELLIGENCE_SERVICE_URL:http://localhost:8089}
+          predicates:
+            - Path=/api/v1/documents/**
+
+        - id: knowledge-service
+          uri: ${KNOWLEDGE_SERVICE_URL:http://localhost:8088}
+          predicates:
+            - Path=/api/v1/knowledge/**
+
+        - id: payment-orchestration-service
+          uri: ${PAYMENT_ORCHESTRATION_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/payments/**
+
+        - id: compliance-evidence-service
+          uri: ${COMPLIANCE_EVIDENCE_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/evidence/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true

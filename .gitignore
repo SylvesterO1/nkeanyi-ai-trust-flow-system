@@ -1,0 +1,51 @@
+# macOS
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Java / Maven
+target/
+*.class
+
+# Logs
+*.log
+logs/
+.pids/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.save
+
+# Node / React
+node_modules/
+dist/
+build/
+web/trustflow-console/node_modules/
+web/trustflow-console/dist/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+.token
+scripts/.token
+application-local.properties
+application-dev.properties
+application-secret.properties
+
+# Docker local data
+platform/docker/data/
+postgres-data/
+keycloak-data/
+
+# Test reports
+surefire-reports/
+failsafe-reports/
+coverage/
