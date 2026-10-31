@@ -1,0 +1,25 @@
+name: NAITFAIS Agent Engineering
+on:
+  pull_request:
+    paths:
+      - 'services/agent-engineering/**'
+      - '.github/workflows/agent-engineering-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'services/agent-engineering/**'
+      - '.github/workflows/agent-engineering-ci.yml'
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test repository policy
+        working-directory: services/agent-engineering
+        run: python -m unittest discover -s tests -v
+      - name: Compile source
+        working-directory: services/agent-engineering
+        run: python -m compileall -q workspace.py mcp_server.py
